@@ -160,7 +160,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
       <div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:.1em">eyeshadow palette finder</div>
     </div>
     <div style="font-family:var(--sans);font-size:13px;color:var(--text);line-height:1.9;letter-spacing:.01em">
-      好きな色を選ぶだけで、あなたに似合うデパコスのアイシャドウパレットを提案するアプリです。YSL・NARS・LUNASOL など10ブランド、全117パレットを収録しています。<br><br>
+      好きな色を選ぶだけで、あなたが好きかもと思えるデパコスのアイシャドウパレットを提案するアプリです。10ブランド・全117パレットを収録しています。<br><br>
       まずは20問、♡かスキップで答えてみてください。
     </div>
     <button onclick="document.getElementById('screen-start').style.display='none';startDiag();"
@@ -740,7 +740,7 @@ function updateShareText(allLiked) {
   const combined = [...allLiked, ...simLiked];
   if (combined.length > 0) {
     const lines = combined.map(p => `${p.brand}  ${p.name}${p.no?' No.'+p.no:''}`);
-    document.getElementById('rec-share-text').textContent = '#colour_quad\nhttps://seu-yu.github.io/colour_quad/\n\n' + lines.join('\n');
+    document.getElementById('rec-share-text').textContent = 'カラーパレットから「好きかも」なアイシャドウを見つけよう\n#colour_quad\nhttps://seu-yu.github.io/colour_quad/\n\n' + lines.join('\n');
     shareBlock.style.display = 'block';
   } else {
     shareBlock.style.display = 'none';
