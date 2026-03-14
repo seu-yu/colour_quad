@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colour Quad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=DM+Sans:wght@300;400&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--card:#211f1d;
+  --border:rgba(255,255,255,0.07);--text:#f0ede8;
+  --text-muted:rgba(240,237,232,0.45);--accent:#c8a882;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans)}
+
+.nav{display:flex;align-items:center;padding:0 1.5rem;height:52px;
+  background:rgba(15,14,13,0.92);backdrop-filter:blur(10px);
+  border-bottom:0.5px solid var(--border);position:sticky;top:0;z-index:50}
+.nav-logo{font-family:var(--serif);font-size:13px;letter-spacing:.14em;color:var(--text-muted)}
+.nav-logo span{color:var(--text);font-weight:500}
+
+.screen{display:none;flex-direction:column;align-items:center;min-height:calc(100vh - 52px)}
+.progress-bar{width:100%;max-width:420px;height:2px;background:var(--border);margin:4px auto 0}
+.progress-fill{height:100%;background:var(--accent);transition:width .4s ease;width:0%}
+.phase-header{width:100%;max-width:420px;display:flex;align-items:center;
+  justify-content:space-between;padding:1.2rem 1.5rem .6rem}
+.phase-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--accent)}
+.phase-progress{font-family:var(--mono);font-size:10px;color:var(--text-muted)}
+
+.card-wrap{flex:1;display:flex;align-items:center;justify-content:center;
+  padding:1rem 1.5rem 0;width:100%}
+.card{width:100%;max-width:360px;border-radius:20px;overflow:hidden;
+  border:0.5px solid var(--border);background:var(--card);
+  box-shadow:0 12px 40px rgba(0,0,0,.5);
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  aspect-ratio:1;min-height:200px;animation:cardIn .2s ease}
+@keyframes cardIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.swatch-cell{width:100%;height:100%;min-height:50px}
+
+.actions{display:flex;gap:10px;padding:1.2rem 1.5rem;width:100%;max-width:420px}
+.btn-undo,.btn-skip,.btn-like{
+  padding:13px;border-radius:12px;border:0.5px solid var(--border);
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;cursor:pointer;transition:all .15s}
+.btn-undo{background:none;color:var(--text-muted);flex-shrink:0;padding:13px 16px;font-size:13px}
+.btn-undo[disabled]{opacity:.2;cursor:default}
+.btn-undo:not([disabled]):hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+.btn-skip{background:none;color:var(--text-muted);flex:1}
+.btn-skip:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+.btn-like{background:var(--accent);color:var(--bg);border-color:var(--accent);flex:1.4}
+.btn-like:hover{opacity:.85}
+.btn-like.liked{background:none;color:var(--accent)}
+
+/* ── Diag result ── */
+.result-diag-inner{width:100%;max-width:500px;padding:2rem 1.5rem 3rem;
+  display:flex;flex-direction:column;gap:1.6rem}
+.rd-heading{font-family:var(--serif);font-size:26px;font-weight:300;letter-spacing:.06em}
+.rd-comment{font-family:var(--mono);font-size:11px;color:var(--text-muted);letter-spacing:.03em;line-height:1.9}
+.rd-section-label{font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--text-muted);text-transform:uppercase;margin-bottom:.6rem}
+.mini-card{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  width:60px;height:60px;border-radius:10px;overflow:hidden;
+  border:0.5px solid var(--border);flex-shrink:0}
+.mini-card div{width:100%;height:100%}
+.diag-liked-row{display:flex;gap:8px;flex-wrap:wrap}
+.tone-pill{display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:var(--card);border:0.5px solid var(--border);border-radius:10px}
+.tone-pill-swatches{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  width:28px;height:28px;border-radius:4px;overflow:hidden;flex-shrink:0}
+.tone-pill-swatches div{width:100%;height:100%}
+.tone-pill span{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--text-muted)}
+.tone-bar{display:flex;gap:8px;flex-wrap:wrap}
+.btn-continue{width:100%;padding:14px;border-radius:12px;
+  background:var(--accent);color:var(--bg);border:none;
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;cursor:pointer;transition:opacity .15s}
+.btn-continue:hover{opacity:.85}
+
+/* ── Rec ── */
+.rec-finish-wrap{width:100%;max-width:420px;padding:0 1.5rem .5rem;text-align:right}
+.btn-finish{background:none;border:none;font-family:var(--mono);font-size:10px;
+  color:var(--text-muted);letter-spacing:.06em;cursor:pointer;padding:4px 0}
+.btn-finish:hover{color:var(--accent)}
+
+/* ── Result ── */
+.result-inner{width:100%;max-width:600px;padding:2rem 1.5rem 4rem;
+  display:flex;flex-direction:column;gap:1.6rem}
+.result-title{font-family:var(--serif);font-size:28px;font-weight:300;letter-spacing:.06em}
+.result-sub{font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:.06em}
+.result-section-label{font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--text-muted);text-transform:uppercase;margin-bottom:.8rem}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.result-item{border-radius:14px;overflow:hidden;border:0.5px solid var(--border);background:var(--card)}
+.result-swatches{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;aspect-ratio:1.1}
+.result-swatches div{width:100%;height:100%}
+.result-meta{padding:9px 11px 11px}
+.result-brand{font-family:var(--mono);font-size:8px;letter-spacing:.1em;
+  color:var(--text-muted);text-transform:uppercase;margin-bottom:3px}
+.result-name{font-family:var(--serif);font-size:14px;font-weight:300;
+  color:var(--text);line-height:1.2}
+.result-no{font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-top:2px}
+
+/* similar section */
+.result-item{position:relative}
+.sim-like-btn{
+  position:absolute;top:6px;right:6px;
+  background:rgba(15,14,13,0.65);backdrop-filter:blur(4px);
+  border:0.5px solid var(--border);border-radius:50%;
+  width:26px;height:26px;font-size:11px;
+  color:var(--text-muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;line-height:1;
+}
+.sim-like-btn:hover{color:var(--accent);border-color:var(--accent)}
+.sim-like-btn.liked{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+.similar-divider{width:100%;height:0.5px;background:var(--border)}
+
+.share-block{background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:1.2rem}
+.share-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  color:var(--text-muted);text-transform:uppercase;margin-bottom:.8rem}
+.share-text{font-family:var(--mono);font-size:11px;color:var(--text);
+  line-height:1.9;white-space:pre-wrap;letter-spacing:.02em}
+.btn-copy{margin-top:1rem;width:100%;padding:11px;border-radius:10px;
+  border:0.5px solid var(--border);background:none;color:var(--text-muted);
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;cursor:pointer;transition:all .15s}
+.btn-copy:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+.btn-copy.copied{color:var(--accent);border-color:var(--accent)}
+.result-btns{display:flex;gap:10px}
+.btn-retry{flex:1;padding:12px;border-radius:12px;border:0.5px solid var(--border);
+  background:none;color:var(--text-muted);font-family:var(--mono);font-size:11px;
+  letter-spacing:.06em;cursor:pointer;transition:all .15s;text-align:center}
+.btn-retry:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+.empty-likes{font-family:var(--mono);font-size:11px;color:var(--text-muted);
+  letter-spacing:.06em;text-align:center;padding:2rem 0;line-height:2}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo"><span>Colour</span> Quad</div>
+</nav>
+
+
+<!-- ════ START ════ -->
+<div id="screen-start" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 52px);padding:2rem 1.5rem">
+  <div style="width:100%;max-width:420px;display:flex;flex-direction:column;gap:1.6rem">
+    <div>
+      <div style="font-family:var(--serif);font-size:32px;font-weight:300;letter-spacing:.08em;color:var(--text);margin-bottom:.4rem"><span style="color:var(--accent)">Colour</span> Quad</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:.1em">eyeshadow palette finder</div>
+    </div>
+    <div style="font-family:var(--sans);font-size:13px;color:var(--text);line-height:1.9;letter-spacing:.01em">
+      好きな色を選ぶだけで、あなたに似合うデパコスのアイシャドウパレットを提案するアプリです。YSL・NARS・LUNASOL など10ブランド、全117パレットを収録しています。<br><br>
+      まずは20問、♡かスキップで答えてみてください。
+    </div>
+    <button onclick="document.getElementById('screen-start').style.display='none';startDiag();"
+      style="width:100%;padding:15px;border-radius:12px;background:var(--accent);color:var(--bg);
+      border:none;font-family:var(--mono);font-size:11px;letter-spacing:.08em;cursor:pointer;
+      transition:opacity .15s"
+      onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+      診断をはじめる →
+    </button>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);line-height:1.9;letter-spacing:.04em;border-top:0.5px solid var(--border);padding-top:1.2rem">
+      色は公式画像から抽出した近似値なので、実物とは異なることがあります。価格や在庫は各ブランドのサイトでチェックしてね。非公式の個人アプリです。
+    </div>
+  </div>
+</div>
+
+<!-- ════ DIAG ════ -->
+<div id="screen-diag" class="screen">
+  <div class="phase-header">
+    <div class="phase-label">診断中</div>
+    <div class="phase-progress" id="diag-progress-text"></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="diag-progress-fill"></div></div>
+  <div class="card-wrap" id="diag-card-wrap"></div>
+  <div class="actions">
+    <button class="btn-undo" id="btn-diag-undo" disabled>↩</button>
+    <button class="btn-skip" id="btn-diag-skip">スキップ</button>
+    <button class="btn-like" id="btn-diag-like">♡</button>
+  </div>
+</div>
+
+<!-- ════ DIAG RESULT ════ -->
+<div id="screen-result-diag" class="screen">
+  <div class="result-diag-inner">
+    <div><div class="rd-heading">診断結果</div></div>
+    <div>
+      <div class="rd-section-label">♡ したパレット</div>
+      <div class="diag-liked-row" id="diag-liked-preview"></div>
+    </div>
+    <div>
+      <div class="rd-section-label">好みの傾向</div>
+      <div class="tone-bar" id="diag-tone-bar"></div>
+    </div>
+    <div class="rd-comment" id="diag-comment"></div>
+    <button class="btn-continue" id="btn-continue">この傾向でおすすめを見る →</button>
+  </div>
+</div>
+
+<!-- ════ REC ════ -->
+<div id="screen-rec" class="screen">
+  <div class="phase-header">
+    <div class="phase-label">おすすめ</div>
+    <div class="phase-progress" id="rec-progress-text"></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="rec-progress-fill"></div></div>
+  <div class="card-wrap" id="rec-card-wrap"></div>
+  <div class="actions">
+    <button class="btn-undo" id="btn-rec-undo" disabled>↩</button>
+    <button class="btn-skip" id="btn-rec-skip">スキップ</button>
+    <button class="btn-like" id="btn-rec-like">♡</button>
+  </div>
+  <div class="rec-finish-wrap">
+    <button class="btn-finish" id="btn-rec-finish">結果を見る →</button>
+  </div>
+</div>
+
+<!-- ════ RESULT ════ -->
+<div id="screen-result-rec" class="screen">
+  <div class="result-inner">
+    <div>
+      <div class="result-title" id="rec-result-count"></div>
+      <div class="result-sub">お気に入りパレット</div>
+    </div>
+    <div class="result-grid" id="rec-result-grid"></div>
+
+    <div id="rec-similar-section">
+      <div class="similar-divider"></div>
+      <div style="padding-top:1.2rem">
+        <div class="result-section-label">これも好きかも</div>
+        <div class="result-grid" id="rec-similar-grid"></div>
+      </div>
+    </div>
+
+    <div class="share-block" id="rec-share-block">
+      <div class="share-label">share</div>
+      <div class="share-text" id="rec-share-text"></div>
+      <button class="btn-copy" id="btn-copy">コピー</button>
+    </div>
+    <div class="result-btns">
+      <button class="btn-retry" id="btn-retry">もう一度診断する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PALETTES = [
+  // ── YSL Couture Mini Clutch ──
+  { brand:'YSL', line:'Couture Mini Clutch', no:'820', name:'マジェスティック リヤド',    tags:['nude','pink'],        colors:['#d59582','#b67d6f','#975350','#aa4b53'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/', isNew:true },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'720', name:'キャプティベイティング デューンズ',    tags:['nude','brown'],       colors:['#c9b09b','#a47d6c','#64504e','#9d8273'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/', isNew:true },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'100', name:'ストラ ドールズ',    tags:['brown','nude'],       colors:['#b29584','#d8a992','#6d5246','#b6927f'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'830', name:'アンエクスプロード ガーデン',    tags:['earth','nude'],       colors:['#d6d6bb','#aa8770','#6d5e47','#93886d'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/', isNew:true },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'700', name:'オーバー ノアール',    tags:['cool'],               colors:['#98887d','#b3917e','#3c3a39','#5d5c5a'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'730', name:'サンライズ サファリ',    tags:['nude','pink'],        colors:['#d1b0a3','#ba857a','#a47063','#c38581'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/', isNew:true },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'710', name:'オーバー ブラン',    tags:['brown'],       colors:['#b6816b','#ab775d','#5b3a32','#b38166'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'200', name:'ギリーズ ドリーム',    tags:['nude','brown'],       colors:['#cca285','#ad7057','#7b5042','#a46258'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'600', name:'スポンティーニ リリー',    tags:['pink'],        colors:['#ce9586','#efb7ab','#aa6051','#dd8c7b'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'300', name:'カスバ スパイシーズ',    tags:['brown','nude'],       colors:['#af8861','#c79371','#714c3a','#c3805b'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'400', name:'バビロン ローズ',    tags:['pink'],        colors:['#c47f7f','#b58584','#8e5d5a','#b67f73'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'500', name:'メディナ グロウ',     tags:['pink','brown'], colors:['#d49a84','#bd827b','#9f555b','#b66f68'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'810', name:'オーバー オランジュ',    tags:['brown'],              colors:['#997259','#ac8269','#885c47','#c36b4d'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  { brand:'YSL', line:'Couture Mini Clutch', no:'800', name:'オーバー ドゥレ',    tags:['earth','brown'],      colors:['#be9e77','#a98769','#6b5245','#c2a272'], url:'https://www.yslbeauty.co.jp/makeup/eyes/eyeshadow/couture-mini-clutch/' },
+  // ── SUQQU Signature Color Eyes ──
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'01', name:'瑞花 MIZUHANA',    tags:['pink','nude'], colors:['#e9d7d4', '#b69389', '#ad7264', '#947369'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'02', name:'陽香色 YOUKOUIRO',    tags:['nude','brown'], colors:['#ead2c6', '#ba9484', '#cd8569', '#c37f6c'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'03', name:'光暮 HIKARIGURE',    tags:['brown'], colors:['#d69d7e', '#d09978', '#9d756a', '#926c65'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'04', name:'純撫子 SUMINADESHIKO',    tags:['pink'], colors:['#f4d9cf', '#d89385', '#c5757e', '#a7656c'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'05', name:'緋影 AKEKAGE',    tags:['cool','pink'], colors:['#ead1c0', '#b59280', '#ae565d', '#8c7068'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'06', name:'深奏 FUKAKANADE',    tags:['cool'], colors:['#e0d0c9', '#c7957c', '#948f8d', '#969195'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'07', name:'紅咲 BENISAKI',    tags:['brown','pink'], colors:['#c68b6b', '#bf746a', '#7b5f5e', '#746a62'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'09', name:'薫風 KAORIKAZE',    tags:['earth','brown'], colors:['#bfa0a8', '#caa47c', '#b3725f', '#8c8168'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'10', name:'彩葉集 IROHAATSUME',    tags:['earth','brown'], colors:['#b3907e', '#a78973', '#c9925b', '#a05b3b'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'11', name:'宵紫 YOIYUKARI',    tags:['cool','nude'], colors:['#c1b4a4', '#b9babe', '#96697a', '#6a5750'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'13', name:'爛漫染 RANMANZOME',    tags:['brown'], colors:['#b2826d', '#ab7f69', '#ab5d51', '#a45c5e'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  { brand:'SUQQU', line:'Signature Color Eyes', no:'14', name:'夕琥箔 YUUKOHAKU',    tags:['nude','brown'], colors:['#dfb69e', '#f3cfa2', '#c18880', '#9a674d'], url:'https://www.suqqu.com/ja/categories/colorMakeup/eyes/p/4973167948859' },
+  // ── TOM FORD BEAUTY RUNWAY Eye Color Quad Crème ──
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Crème', no:'36', name:'タイガー アイ',    tags:['brown','nude'],   colors:['#d69b7a','#cd8168','#ae7d6a','#5f392f'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Crème', no:'35', name:'ローズ トパーズ',    tags:['pink','nude'],    colors:['#e0a48e','#dd736a','#93625e','#5f413e'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Crème', no:'46', name:'アイコニック スモーク',tags:['cool'],  colors:['#df8d78','#b17f7b','#4f4258','#4e3b48'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Crème', no:'45', name:'エンバー ブロンズ',    tags:['brown'],   colors:['#e1ae83','#a56f46','#6b5e49','#292a2a'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Crème', no:'47', name:'オリーブ スモーク',    tags:['earth'],   colors:['#c18a73','#dbb391','#d1b3a6','#3f2c25'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  // ── TOM FORD BEAUTY RUNWAY Eye Color Quad Poudre ──
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Poudre', no:'38', name:'メタリック モーブ',    tags:['cool','pink'], colors:['#d69a9c','#d6afae','#cd86a9','#9d606b'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Poudre', no:'27', name:'イブニング アタイア',    tags:['cool','brown'],  colors:['#cc8b75','#b99689','#d07b6e','#3d2934'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Poudre', no:'31', name:'スー ル サーブル',    tags:['nude','pink'],   colors:['#e8b8ac','#d8978b','#b1756d','#965754'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Poudre', no:'30', name:'インソレント ローズ',    tags:['pink','cool'],   colors:['#f1ccc0','#a14b4d','#cd7b71','#6c3a3b'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  { brand:'TOM FORD', line:'RUNWAY Eye Color Quad Poudre', no:'20', name:'ディスコ ダスト',    tags:['brown','nude'],  colors:['#e79a6e','#caa17e','#b86a5f','#5d4442'], url:'https://www.tomfordbeauty.co.jp/eyes/eye-color-quads/' },
+  // ── Clé de Peau Beauté Ombre Couleur Quadri ──
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'1', name:'Sand Dune',    tags:['nude'], colors:['#f2d9d7', '#cfb3a8', '#b79589', '#8b7168'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'2', name:'Beach Pebbles',    tags:['nude','brown'], colors:['#e2bea8', '#c6a187', '#bb937a', '#a58069'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'3', name:'Sundried Driftwood',    tags:['pink','nude'], colors:['#edccc3', '#cfa49c', '#ac9089', '#765856'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'4', name:'Ocean Sunrise',    tags:['earth','brown'], colors:['#f0d2b5', '#b48f67', '#8b6451', '#624f46'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'5', name:'Coral Reef',    tags:['brown','nude'], colors:['#e0b19c', '#bc8975', '#b69577', '#714e3a'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'6', name:'Caviar Pearls',    tags:['cool','pink'], colors:['#dfb4b3', '#b07990', '#a67974', '#6c514d'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'7', name:'Starlight Splendor',    tags:['pink','brown'], colors:['#e6b8a3', '#c68c86', '#a57455', '#724d43'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'8', name:'Warm Ocean Sunset',    tags:['pink'], colors:['#e8c5b9', '#ca9c93', '#d68679', '#a26a65'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'9', name:'Pink Coral Shells',    tags:['pink','nude'], colors:['#f3d1d2', '#c98e92', '#b69284', '#775251'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'10', name:'Sea Grass',    tags:['earth'], colors:['#ceb087', '#9d9065', '#927c5d', '#61625c'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'11', name:'Azure Blue Sea',    tags:['cool'], colors:['#e2e0e0', '#acc3e3', '#69a4a8', '#526072'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  { brand:'クレ・ド・ポー ボーテ', line:'Ombre Couleur Quadri', no:'12', name:'Purple Ocean Twilight',    tags:['cool','nude'], colors:['#ebd0d5', '#b9a0c6', '#aa9294', '#805c71'], url:'https://www.cledepeau-beaute.com/jp/G73401SET.html' },
+  // ── RMK Synchromatic Eyeshadow Palette ──
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'01', name:'ソフトスポット',    tags:['nude','brown'],  colors:['#c99c7c','#a97c64','#896452','#cc9b85'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'02', name:'ストリート スマート',    tags:['earth','brown'],  colors:['#d6a27a','#a06849','#b37b65','#d59a4f'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'03', name:'コンパッショネイト',    tags:['pink','nude'],   colors:['#d9a27b','#a66f52','#ae705c','#cb8771'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'04', name:'オール ハート',    tags:['pink','brown'],  colors:['#cb9b88','#814e44','#947062','#ad7771'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'05', name:'ディライトフル',    tags:['pink'],  colors:['#dea390','#bb6756','#965543','#e89f8e'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'06', name:'インジーニアス',    tags:['earth','brown'],  colors:['#c28b55','#976a48','#706946','#bc9865'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'07', name:'ヴィジョナリー',    tags:['brown'],         colors:['#c06f38','#905632','#9d674b','#d9a460'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'08', name:'エンチャンティング',    tags:['cool','brown'],  colors:['#a46552','#9e4746','#926d5e','#d7b58f'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  { brand:'RMK', line:'Synchromatic Eyeshadow Palette', no:'09', name:'スマート アンド ウィッティ',    tags:['nude'], colors:['#b8a78b','#d9cbb0','#bd885e','#a9896c'], url:'https://www.rmkrmk.com/ja/categories/colormakeup/eyecolor/p/4973167513781' },
+  // ── THREE Stargazing Eyeshadow Quad ──
+  { brand:'THREE', line:'Stargazing Eyeshadow Quad', no:'01', name:'DESERT FLOWER',    tags:['pink','brown'],  colors:['#d2aa8f','#d2a098','#a88575','#a36a6e'], url:'https://www.three-cosmetics.com/products/eyes/stargazing-eyeshadow-quad/' },
+  { brand:'THREE', line:'Stargazing Eyeshadow Quad', no:'02', name:'ANDROID DREAMS',    tags:['brown','nude'],  colors:['#d5a89e','#c6a386','#926a57','#c78c78'], url:'https://www.three-cosmetics.com/products/eyes/stargazing-eyeshadow-quad/' },
+  { brand:'THREE', line:'Stargazing Eyeshadow Quad', no:'03', name:'BREATHLESS PARISIAN',    tags:['nude'],  colors:['#d8bdbb','#d2a593','#bb8a6d','#8f654a'], url:'https://www.three-cosmetics.com/products/eyes/stargazing-eyeshadow-quad/' },
+  { brand:'THREE', line:'Stargazing Eyeshadow Quad', no:'04', name:'MON PETIT AMI',    tags:['earth','brown'], colors:['#d7a584','#bd8c79','#a57059','#c79349'], url:'https://www.three-cosmetics.com/products/eyes/stargazing-eyeshadow-quad/' },
+  { brand:'THREE', line:'Stargazing Eyeshadow Quad', no:'05', name:'BEAUTIFUL BONNIE',    tags:['pink'],  colors:['#d3a7a7','#c69584','#7e5449','#bc917a'], url:'https://www.three-cosmetics.com/products/eyes/stargazing-eyeshadow-quad/' },
+  { brand:'THREE', line:'Stargazing Eyeshadow Quad', no:'06', name:'MYSTERIOUS MISTER',    tags:['cool','brown'],  colors:['#a2908a','#d0a195','#996c5b','#bd7a64'], url:'https://www.three-cosmetics.com/products/eyes/stargazing-eyeshadow-quad/' },
+  { brand:'THREE', line:'Stargazing Eyeshadow Quad', no:'09', name:'FLOWER SPACE',    tags:['pink','brown'],  colors:['#dfb69b','#e0ab95','#be7363','#8c5c4b'], url:'https://www.three-cosmetics.com/products/eyes/stargazing-eyeshadow-quad/' },
+  { brand:'THREE', line:'Stargazing Eyeshadow Quad', no:'10', name:'GARDEN SPACE',    tags:['brown'],  colors:['#d3b399','#be8c84','#8f695c','#aa7f7e'], url:'https://www.three-cosmetics.com/products/eyes/stargazing-eyeshadow-quad/' },
+  // ── ADDICTION The Eyeshadow Palette + ──
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'001', name:'Vintage Tutu',    tags:['pink','nude'],    colors:['#debbae','#d39886','#dba7af','#ac8673'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'002', name:'Cashmere Dream',    tags:['nude','brown'],   colors:['#ddaa90','#b68b7c','#cb9379','#bb9777'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'003', name:'Timeless Gold',    tags:['earth','brown'],  colors:['#eecd9e','#cc8566','#c68a5e','#997058'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'004', name:'Autumn Runway',    tags:['brown'],   colors:['#e4aa89','#af8569','#c07f6f','#755b4f'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'005', name:'Marriage Vow',    tags:['pink'],   colors:['#ebad96','#d58e73','#da958c','#b87c6a'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'006', name:'Hidden Orchid',    tags:['cool','nude'],  colors:['#e8e3e3','#a47963','#bda1c8','#96766f'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'007', name:'Memory of Sage',    tags:['earth'],  colors:['#edb38b','#d3a785','#b07a56','#716755'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'008', name:'Miss Mauve',    tags:['nude','pink'],    colors:['#b998a3','#9e7f84','#b99b95','#7b5c58'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'009', name:'Enchanted Lilac',    tags:['cool','pink'],  colors:['#c3a6a0','#d8ada0','#ca939f','#806358'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'010', name:'Apricot Addict',    tags:['brown'],   colors:['#e6aa89','#dfa466','#d58a7a','#b57651'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'011', name:'Suntan Camel',    tags:['nude'],   colors:['#dbd4ce','#dca37d','#b58563','#a3764d'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  { brand:'ADDICTION', line:'The Eyeshadow Palette +', no:'012', name:'Heirloom Jewel',    tags:['cool','brown'], colors:['#b9aad4','#b98373','#d88768','#a36d7c'], url:'https://www.addiction-beauty.com/site/g/gMAHM001/' },
+  // ── LUNASOL Skin Modeling Eyes ──
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'01',   name:'Nostalgic Time',    tags:['brown','nude'],   colors:['#f8c1a0','#b1846c','#d68967','#a46752'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'02',   name:'Bitter Romance',    tags:['pink','brown'],   colors:['#e5a992','#bd887c','#ac615f','#9a6e59'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'03',   name:'Urban Classic',    tags:['earth','brown'],  colors:['#edbb9a','#c6986d','#899186','#916d5b'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'04',   name:'1200b0C signs of spring',tags:['nude','brown'],   colors:['#e7e8e5','#e5bb96','#ccb792','#d19872'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'05',   name:'Sunlit Reflet',    tags:['nude'],   colors:['#f5e4c3','#d8aa8c','#db976e','#926651'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'06',   name:'Scented Haze',    tags:['pink'],   colors:['#f7c7ac','#daac9c','#d5939c','#95675c'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'07',   name:'Vintage Petal',    tags:['nude','pink'],    colors:['#f1ecce','#d2a496','#d0948b','#ac6e59'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'08',   name:'Autumn Mellow',    tags:['brown','pink'],   colors:['#fbdfdd','#f0917f','#d27f6b','#835256'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'09',   name:'Grape Meadow',    tags:['cool','pink'],  colors:['#f9c1b6','#d3b1bf','#b87889','#845747'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'10',   name:'Deep Rose Quartz',    tags:['pink'],   colors:['#ecb88f','#e98680','#ce957d','#664438'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'11',   name:'Savage Rose',    tags:['pink','brown'],   colors:['#e5b67f','#de9383','#d98978','#8f5b49'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'12',   name:'Smoky Quartz',    tags:['earth'],  colors:['#ddb08c','#938e6a','#c79975','#534236'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'13',   name:'Sepia Amber',    tags:['brown'],          colors:['#e2bc92','#aa8865','#cd865e','#996b53'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'14',   name:'Mahogany',    tags:['brown'],          colors:['#e1ab9c','#c0806c','#d38264','#7c4c45'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'15',   name:'Flawless Clarity',    tags:['nude'],   colors:['#e1dfd8','#edc8ac','#cd9476','#734f3a'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'16',   name:'Morning Glow',    tags:['nude','pink'],   colors:['#fed1bf','#eea68b','#c58552','#d18f66'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'17',   name:'Neo Depth',    tags:['nude','brown'],   colors:['#feccab','#e8b799','#b87c68','#694e47'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'18',   name:'Harmonized Ray',    tags:['brown','nude'],   colors:['#fddab9','#e6b2a6','#cd9377','#b17b67'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'19',   name:'Ash Moon',    tags:['cool'],  colors:['#f9e1bf','#ddb1b2','#d69984','#97685a'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'20',   name:'Icy Sugar',    tags:['cool','pink'],  colors:['#e6c9c6','#efbbae','#dfb3ca','#a17473'], isNew:true, url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'21',   name:'Peach Fusion',    tags:['nude','pink'],   colors:['#e5bab6','#e59f94','#d8908a','#cf7c71'], isNew:true, url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'EX02', name:'Antique Mauve',    tags:['pink','nude'],    colors:['#eec5a7','#b59da8','#a86f6b','#836960'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'EX12', name:'Mystic Merge',    tags:['cool','pink'],  colors:['#efd2bd','#c7b7dc','#e7937f','#a47970'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  { brand:'LUNASOL', line:'Skin Modeling Eyes', no:'EX13', name:'Golden Bouquet',    tags:['pink','brown'],   colors:['#fccab8','#fabb9f','#e08a9a','#9c6960'], url:'https://www.lunasol.net/products/detail.php?product_id=1' },
+  // ── NARS Quad Eyeshadow ──
+  { brand:'NARS', line:'Quad Eyeshadow', no:'04434', name:'LAGUNA',    tags:['brown','nude'],  colors:['#cfa489','#cc8f6d','#b3775d','#a96857'], url:'https://www.narscosmetics.jp/quad-eyeshadow/890601.html' },
+  { brand:'NARS', line:'Quad Eyeshadow', no:'04433', name:'KUALA LUMPUR',    tags:['pink','brown'],  colors:['#c58c78','#8c4c4d','#bf8480','#b8646e'], url:'https://www.narscosmetics.jp/quad-eyeshadow/890601.html' },
+  { brand:'NARS', line:'Quad Eyeshadow', no:'03846', name:'KOH RONG',    tags:['nude','brown'],  colors:['#dbb4a1','#9f6f61','#bb9785','#6b4e44'], url:'https://www.narscosmetics.jp/quad-eyeshadow/890601.html' },
+  { brand:'NARS', line:'Quad Eyeshadow', no:'03847', name:'ST PAUL DE VENCE',    tags:['nude','pink'],   colors:['#b29992','#d18571','#d09688','#644840'], url:'https://www.narscosmetics.jp/quad-eyeshadow/890601.html' },
+  { brand:'NARS', line:'Quad Eyeshadow', no:'01801', name:'ORGASM',    tags:['pink','nude'],   colors:['#caa485','#b57d71','#df957e','#b78b73'], url:'https://www.narscosmetics.jp/quad-eyeshadow/890601.html' },
+  { brand:'NARS', line:'Quad Eyeshadow', no:'3970',  name:'MOJAVE',    tags:['brown','nude'],  colors:['#9d7d6c','#4a2f23','#b7825c','#efcbae'], url:'https://www.narscosmetics.jp/quad-eyeshadow/890601.html' },
+  { brand:'NARS', line:'Quad Eyeshadow', no:'01803', name:'TAJ MAHAL',    tags:['brown'],         colors:['#b98c68','#a9816f','#bf7147','#893427'], url:'https://www.narscosmetics.jp/quad-eyeshadow/890601.html' },
+  { brand:'NARS', line:'Quad Eyeshadow', no:'3972',  name:'SINGAPORE',    tags:['nude','pink'],   colors:['#d5aa90','#ae6e56','#cea384','#c26667'], url:'https://www.narscosmetics.jp/quad-eyeshadow/890601.html' },
+  // ── GUERLAIN Ombres G ──
+  { brand:'GUERLAIN', line:'Ombres G', no:'870', name:'エメラルド フェザー',    tags:['earth','brown'],  colors:['#ecba5b','#524936','#c07e68','#7b6e47'], url:'https://www.guerlain.com/jp/ja-jp/p/ombres-g-eyeshadow-quad-P044121.html', isNew:true },
+  { brand:'GUERLAIN', line:'Ombres G', no:'940', name:'ロイヤル ジャングル',    tags:['nude','brown'],   colors:['#b58574','#fdc08b','#787473','#fbc697'], url:'https://www.guerlain.com/jp/ja-jp/p/ombres-g-eyeshadow-quad-P044121.html' },
+  { brand:'GUERLAIN', line:'Ombres G', no:'360', name:'ミスティック ピーコック',tags:['cool'],    colors:['#0560ad','#53424d','#fe9674','#618c90'], url:'https://www.guerlain.com/jp/ja-jp/p/ombres-g-eyeshadow-quad-P044121.html' },
+  { brand:'GUERLAIN', line:'Ombres G', no:'129', name:'ハニー アンバー',    tags:['pink','brown'],   colors:['#dd9b83','#8e5a49','#c5704b','#f9a099'], url:'https://www.guerlain.com/jp/ja-jp/p/ombres-g-eyeshadow-quad-P044121.html' },
+  { brand:'GUERLAIN', line:'Ombres G', no:'530', name:'マジェスティック ローズ',    tags:['pink'],  colors:['#a06046','#7f3b4a','#fec6be','#fd9f9c'], url:'https://www.guerlain.com/jp/ja-jp/p/ombres-g-eyeshadow-quad-P044121.html' },
+  { brand:'GUERLAIN', line:'Ombres G', no:'910', name:'アンドレスド ブラウン',    tags:['brown'],         colors:['#d37b60','#f9d8cb','#704b3f','#694239'], url:'https://www.guerlain.com/jp/ja-jp/p/ombres-g-eyeshadow-quad-P044121.html' },
+  { brand:'GUERLAIN', line:'Ombres G', no:'258', name:'ワイルド ヌード',    tags:['nude','brown'],  colors:['#734639','#ebaa78','#de9a85','#8a5b4d'], url:'https://www.guerlain.com/jp/ja-jp/p/ombres-g-eyeshadow-quad-P044121.html' },
+  { brand:'GUERLAIN', line:'Ombres G', no:'131', name:'バーディー ベージュ',    tags:['nude'],  colors:['#453d3d','#d0b3a8','#755041','#b87a5e'], url:'https://www.guerlain.com/jp/ja-jp/p/ombres-g-eyeshadow-quad-P044121.html', isNew:true },
+];
+const TONE_META = {
+  pink:  { label:'pink',  jp:'ピンク・ローズ系',  colors:['#e8a0a0','#d4728a','#c45872','#e6b8c0'] },
+  nude:  { label:'nude',  jp:'ヌード・ベージュ系', colors:['#d4b8a0','#c4a080','#b08868','#e2cbb8'] },
+  brown: { label:'brown', jp:'ブラウン・テラコッタ系', colors:['#8b5e3c','#a07040','#6b4428','#c09060'] },
+  earth: { label:'earth', jp:'アース・オリーブ系', colors:['#7a7a40','#9a9050','#5a6030','#b0a868'] },
+  cool:  { label:'cool',  jp:'クール・パープル系', colors:['#6a5a7a','#504070','#8080a0','#382848'] },
+};
+
+// ── HSV変換 & ヒストグラム ──
+function hexToHsv(hex) {
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  const d = max - min;
+  let h = 0;
+  if (d > 0) {
+    if (max === r)      h = ((g-b)/d + (g<b?6:0)) / 6;
+    else if (max === g) h = ((b-r)/d + 2) / 6;
+    else                h = ((r-g)/d + 4) / 6;
+  }
+  return [h, max>0 ? d/max : 0, max];
+}
+
+function paletteToHsvVec(palette) {
+  // H: 8bins, S: 4bins, V: 4bins → 16次元ベクトル
+  const H_BINS=8, S_BINS=4, V_BINS=4;
+  const vec = new Array(H_BINS + S_BINS + V_BINS).fill(0);
+  for (const hex of palette.colors) {
+    const [h,s,v] = hexToHsv(hex);
+    vec[Math.min(Math.floor(h * H_BINS), H_BINS-1)]++;
+    vec[H_BINS + Math.min(Math.floor(s * S_BINS), S_BINS-1)]++;
+    vec[H_BINS + S_BINS + Math.min(Math.floor(v * V_BINS), V_BINS-1)]++;
+  }
+  // 正規化
+  const norm = Math.sqrt(vec.reduce((s,v)=>s+v*v,0)) || 1;
+  return vec.map(v => v/norm);
+}
+
+function cosineSim(a, b) {
+  let dot=0, na=0, nb=0;
+  for (let i=0;i<a.length;i++) { dot+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; }
+  return dot / (Math.sqrt(na)*Math.sqrt(nb) || 1);
+}
+
+// パレットベクトルをキャッシュ
+const PALETTE_VECS = PALETTES.map(p => paletteToHsvVec(p));
+
+function getSimilar(likedPalettes, excludeKeys, topN=10) {
+  if (likedPalettes.length === 0) return [];
+  // 好みベクトル = ♡パレットのベクトル平均
+  const dim = PALETTE_VECS[0].length;
+  const prefVec = new Array(dim).fill(0);
+  for (const p of likedPalettes) {
+    const idx = PALETTES.findIndex(x => x.brand===p.brand && x.name===p.name);
+    if (idx >= 0) PALETTE_VECS[idx].forEach((v,i) => prefVec[i] += v);
+  }
+  const norm = Math.sqrt(prefVec.reduce((s,v)=>s+v*v,0)) || 1;
+  prefVec.forEach((_,i) => prefVec[i] /= norm);
+
+  // excludeKeysに含まれないパレットとの類似度計算
+  return PALETTES
+    .map((p,i) => ({p, sim: cosineSim(PALETTE_VECS[i], prefVec)}))
+    .filter(({p}) => !excludeKeys.has(p.brand+'|'+p.name))
+    .sort((a,b) => b.sim - a.sim)
+    .slice(0, topN)
+    .map(({p}) => p);
+}
+
+// ── State ──
+let diagQueue     = [];
+let diagIdx       = 0;
+let diagLiked     = [];
+let diagSkipped   = [];
+let recQueue      = [];
+let recIdx        = 0;
+let recLiked      = [];
+let recHistory    = [];
+let phase         = 'diag';
+let simLiked      = [];
+let toneWeights   = {};
+let lightnessDir  = 'neutral';
+
+// ── Helpers ──
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function hexLightness(hex) {
+  const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+  return 0.2126*r+0.7152*g+0.0722*b;
+}
+function paletteLightness(p) { return p.colors.reduce((s,c)=>s+hexLightness(c),0)/p.colors.length; }
+
+// ── Screen ──
+function showScreen(name) {
+  ['screen-diag','screen-result-diag','screen-rec','screen-result-rec'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.style.display='none';}
+  });
+  const el=document.getElementById(name);
+  if(el){el.style.display='flex';el.style.flexDirection='column';}
+}
+
+// ── Tone grid ──
+function renderToneGrid() { /* unused — no tone select screen */ }
+
+// ── PHASE 1: Diagnosis (20枚) ──
+function startDiag() {
+  diagQueue=[]; diagIdx=0; diagLiked=[]; diagSkipped=[]; recLiked=[];
+
+  // tone比率を保ちつつ、明度×彩度の高低をバランスよくランダムに20枚選ぶ
+  const DIAG_PER_TONE = {pink:5, nude:5, brown:4, cool:3, earth:3};
+
+  function paletteSaturation(p) {
+    return p.colors.reduce((sum, hex) => {
+      const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+      const max=Math.max(r,g,b), min=Math.min(r,g,b);
+      return sum + (max > 0 ? (max-min)/max : 0);
+    }, 0) / p.colors.length;
+  }
+
+  const picks = [];
+  Object.entries(DIAG_PER_TONE).forEach(([tone, n]) => {
+    const pool = PALETTES.filter(p => p.tags[0] === tone);
+    // 明度×彩度の4象限に分類
+    const medL = pool.map(p => paletteLightness(p)).sort((a,b)=>a-b)[Math.floor(pool.length/2)];
+    const medS = pool.map(p => paletteSaturation(p)).sort((a,b)=>a-b)[Math.floor(pool.length/2)];
+    const quads = [
+      pool.filter(p => paletteLightness(p) >= medL && paletteSaturation(p) >= medS), // 明・高彩度
+      pool.filter(p => paletteLightness(p) >= medL && paletteSaturation(p) <  medS), // 明・低彩度
+      pool.filter(p => paletteLightness(p) <  medL && paletteSaturation(p) >= medS), // 暗・高彩度
+      pool.filter(p => paletteLightness(p) <  medL && paletteSaturation(p) <  medS), // 暗・低彩度
+    ];
+    // 各象限からランダムに1枚ずつ取り、n枚になるまで残りをランダム補充
+    const selected = new Set();
+    quads.forEach(q => {
+      const candidates = shuffle(q).filter(p => !selected.has(p));
+      if (candidates.length > 0) selected.add(candidates[0]);
+    });
+    // n枚に満たない場合はランダムに補充
+    const rest = shuffle(pool.filter(p => !selected.has(p)));
+    let i = 0;
+    while (selected.size < n && i < rest.length) selected.add(rest[i++]);
+    picks.push(...selected);
+  });
+  diagQueue = shuffle(picks);
+
+  showScreen('screen-diag');
+  showDiagCard();
+}
+
+function showDiagCard() {
+  if(diagIdx>=diagQueue.length){showDiagResult();return;}
+  const p=diagQueue[diagIdx];
+  renderCard('diag-card-wrap',p);
+  updateDiagProgress();
+  const likeBtn=document.getElementById('btn-diag-like');
+  likeBtn.classList.remove('liked');
+  likeBtn.textContent='♡';
+  document.getElementById('btn-diag-undo').disabled = diagIdx===0;
+}
+
+function updateDiagProgress() {
+  const pct=(diagIdx/diagQueue.length)*100;
+  document.getElementById('diag-progress-fill').style.width=pct+'%';
+  document.getElementById('diag-progress-text').textContent=`${diagIdx+1} / ${diagQueue.length}`;
+}
+
+function renderCard(wrapId,p) {
+  const wrap=document.getElementById(wrapId);
+  const old=wrap.querySelector('.card');
+  if(old) wrap.removeChild(old);
+  const card=document.createElement('div');
+  card.className='card';
+  card.innerHTML=p.colors.map(c=>`<div class="swatch-cell" style="background:${c}"></div>`).join('');
+  wrap.appendChild(card);
+}
+
+function showDiagResult() {
+  toneWeights={pink:1,nude:1,brown:1,earth:1,cool:1};
+  diagLiked.forEach(p=>{toneWeights[p.tags[0]]=(toneWeights[p.tags[0]]||1)+3;});
+  diagSkipped.forEach(p=>{toneWeights[p.tags[0]]=Math.max(0.2,(toneWeights[p.tags[0]]||1)-0.5);});
+
+  if(diagLiked.length>0){
+    const avgL=diagLiked.reduce((s,p)=>s+paletteLightness(p),0)/diagLiked.length;
+    lightnessDir=avgL>0.45?'light':avgL<0.28?'dark':'neutral';
+  }
+
+  const sorted=Object.entries(toneWeights).sort((a,b)=>b[1]-a[1]);
+  const top1=sorted[0][0], top2=sorted[1][0];
+  const lightComment=lightnessDir==='light'?'明るめ・透明感のある':lightnessDir==='dark'?'こなれた深みのある':'';
+  let comment='';
+  if(diagLiked.length===0) comment='まだ好みが掴めていません。もう少し試してみましょう！';
+  else if(diagLiked.length>=3) comment=`${lightComment}${TONE_META[top1].jp}がお好みのようです。${TONE_META[top2].jp}も気になっていそうですね。`;
+  else comment=`${lightComment}${TONE_META[top1].jp}に惹かれる傾向があります。`;
+
+  const preview=document.getElementById('diag-liked-preview');
+  preview.innerHTML=diagLiked.length>0
+    ?diagLiked.map(p=>`<div class="mini-card">${p.colors.map(c=>`<div style="background:${c}"></div>`).join('')}</div>`).join('')
+    :'<p style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">♡なし</p>';
+
+  document.getElementById('diag-comment').textContent=comment;
+
+  const toneBar=document.getElementById('diag-tone-bar');
+  toneBar.innerHTML=sorted.slice(0,3).map(([tone])=>`
+    <div class="tone-pill">
+      <div class="tone-pill-swatches">${TONE_META[tone].colors.map(c=>`<div style="background:${c}"></div>`).join('')}</div>
+      <span>${TONE_META[tone].label}</span>
+    </div>`).join('');
+
+  showScreen('screen-result-diag');
+}
+
+// ── PHASE 2: Recommendation ──
+// ── リアルタイム好みベクトル ──
+let recPool      = [];  // 未見パレットのプール
+let recPrefVec   = [];  // リアルタイム更新される好みベクトル
+let recShown     = [];  // 表示済みパレット（undo用）
+const REC_LIMIT  = 20;  // 最大表示枚数
+
+function buildPrefVec(liked, skipped) {
+  const dim = PALETTE_VECS[0].length;
+  const vec = new Array(dim).fill(0);
+  // diagLikedをベースに
+  for (const p of liked) {
+    const idx = PALETTES.findIndex(x => x.brand===p.brand && x.name===p.name);
+    if (idx >= 0) PALETTE_VECS[idx].forEach((v,i) => vec[i] += v);
+  }
+  // skipは半分の重みで引き算
+  for (const p of skipped) {
+    const idx = PALETTES.findIndex(x => x.brand===p.brand && x.name===p.name);
+    if (idx >= 0) PALETTE_VECS[idx].forEach((v,i) => vec[i] -= v * 0.5);
+  }
+  const norm = Math.sqrt(vec.reduce((s,v)=>s+v*v,0)) || 1;
+  return vec.map(v => v/norm);
+}
+
+function nextBestFromPool() {
+  if (recPool.length === 0) return null;
+  // 好みベクトルが空（diagLiked=0）ならランダム
+  if (recPrefVec.every(v=>v===0)) return recPool.splice(Math.floor(Math.random()*recPool.length), 1)[0];
+  let bestIdx=0, bestSim=-Infinity;
+  recPool.forEach((p,i) => {
+    const pidx = PALETTES.findIndex(x=>x.brand===p.brand&&x.name===p.name);
+    const sim = pidx>=0 ? cosineSim(PALETTE_VECS[pidx], recPrefVec) : 0;
+    if (sim > bestSim) { bestSim=sim; bestIdx=i; }
+  });
+  return recPool.splice(bestIdx, 1)[0];
+}
+
+function startRec() {
+  recHistory=[]; recLiked=[...diagLiked];
+  recShown=[];
+
+  const diagSeenKeys=new Set(diagQueue.map(p=>p.brand+'|'+p.name));
+  recPool = shuffle(PALETTES.filter(p=>!diagSeenKeys.has(p.brand+'|'+p.name)));
+  recPrefVec = buildPrefVec(diagLiked, diagSkipped);
+
+  showScreen('screen-rec');
+  showRecCard();
+}
+
+function showRecCard() {
+  if (recShown.length >= REC_LIMIT || recPool.length === 0) { showRecResult(); return; }
+  const p = nextBestFromPool();
+  if (!p) { showRecResult(); return; }
+  recShown.push(p);
+
+  renderCard('rec-card-wrap', p);
+  const done = recShown.length;
+  document.getElementById('rec-progress-fill').style.width = (done/REC_LIMIT*100)+'%';
+  document.getElementById('rec-progress-text').textContent = `${done} / ${REC_LIMIT}`;
+  const likeBtn=document.getElementById('btn-rec-like');
+  likeBtn.classList.remove('liked'); likeBtn.textContent='♡';
+  document.getElementById('btn-rec-undo').disabled = recHistory.length===0;
+}
+
+function showRecResult() {
+  const allLiked=recLiked;
+  const likedKeys=new Set(allLiked.map(p=>p.brand+'|'+p.name));
+  const diagSeenKeys=new Set(diagQueue.map(p=>p.brand+'|'+p.name));
+  const excludeKeys=new Set([...likedKeys,...diagSeenKeys,...recShown.map(p=>p.brand+'|'+p.name)]);
+
+  // ♡した一覧
+  const grid=document.getElementById('rec-result-grid');
+  if(allLiked.length===0){
+    grid.innerHTML=`<div class="empty-likes" style="grid-column:1/-1">お気に入りが見つかりませんでした。もう一度試してみて！</div>`;
+  } else {
+    grid.innerHTML=allLiked.map(p=>`
+      <div class="result-item">
+        <div class="result-swatches">${p.colors.map(c=>`<div style="background:${c}"></div>`).join('')}</div>
+        <div class="result-meta">
+          <div class="result-brand">${p.brand}</div>
+          <div class="result-name">${p.name}</div>
+          ${p.no?`<div class="result-no">No.${p.no}</div>`:''}
+        </div>
+      </div>`).join('');
+  }
+
+  // これも好きかも（HSVで近い10枚）
+  simLiked = [];
+  const similar=getSimilar(allLiked, excludeKeys, 10);
+  const simGrid=document.getElementById('rec-similar-grid');
+  if(similar.length===0||allLiked.length===0){
+    document.getElementById('rec-similar-section').style.display='none';
+  } else {
+    document.getElementById('rec-similar-section').style.display='block';
+    simGrid.innerHTML=similar.map((p,i)=>`
+      <div class="result-item">
+        <div class="result-swatches">${p.colors.map(c=>`<div style="background:${c}"></div>`).join('')}</div>
+        <div class="result-meta">
+          <div class="result-brand">${p.brand}</div>
+          <div class="result-name">${p.name}</div>
+          ${p.no?`<div class="result-no">No.${p.no}</div>`:''}
+        </div>
+        <button class="sim-like-btn" data-idx="${i}" onclick="toggleSimLike(this,${i})">♡</button>
+      </div>`).join('');
+    // similarをwindowにキャッシュ
+    window._similar = similar;
+  }
+
+  // シェアテキスト（♡ + simLikedを合わせて更新）
+  updateShareText(allLiked);
+
+  document.getElementById('rec-result-count').textContent=allLiked.length>0?`♡ ${allLiked.length}`:'結果';
+  document.getElementById('btn-retry').onclick=()=>startDiag();
+  showScreen('screen-result-rec');
+}
+
+
+// ── Similar like toggle ──
+function toggleSimLike(btn, idx) {
+  const p = window._similar[idx];
+  if (!p) return;
+  const key = p.brand+'|'+p.name;
+  const alreadyLiked = simLiked.findIndex(x => x.brand+'|'+x.name === key);
+  if (alreadyLiked >= 0) {
+    simLiked.splice(alreadyLiked, 1);
+    btn.classList.remove('liked');
+    btn.textContent = '♡';
+  } else {
+    simLiked.push(p);
+    btn.classList.add('liked');
+    btn.textContent = '♡';
+  }
+  updateShareText(recLiked);
+}
+
+function updateShareText(allLiked) {
+  const shareBlock = document.getElementById('rec-share-block');
+  const combined = [...allLiked, ...simLiked];
+  if (combined.length > 0) {
+    const lines = combined.map(p => `${p.brand}  ${p.name}${p.no?' No.'+p.no:''}`);
+    document.getElementById('rec-share-text').textContent = '#colour_quad\nhttps://seu-yu.github.io/colour_quad/\n\n' + lines.join('\n');
+    shareBlock.style.display = 'block';
+  } else {
+    shareBlock.style.display = 'none';
+  }
+}
+
+// ── Copy ──
+document.getElementById('btn-copy').addEventListener('click',()=>{
+  const txt=document.getElementById('rec-share-text').textContent;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn=document.getElementById('btn-copy');
+    btn.textContent='コピー済み ✓';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='コピー';btn.classList.remove('copied');},2000);
+  });
+});
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded',()=>{
+
+document.getElementById('btn-diag-skip').addEventListener('click',()=>{
+  diagSkipped.push(diagQueue[diagIdx]);
+  diagIdx++;showDiagCard();
+});
+document.getElementById('btn-diag-like').addEventListener('click',()=>{
+  const btn=document.getElementById('btn-diag-like');
+  if(btn.classList.contains('liked')) return;
+  diagLiked.push(diagQueue[diagIdx]);
+  btn.classList.add('liked');btn.textContent='♡ 追加';
+  setTimeout(()=>{diagIdx++;showDiagCard();},350);
+});
+document.getElementById('btn-diag-undo').addEventListener('click',()=>{
+  if(diagIdx===0) return;
+  diagIdx--;
+  diagLiked=diagLiked.filter(p=>p!==diagQueue[diagIdx]);
+  diagSkipped=diagSkipped.filter(p=>p!==diagQueue[diagIdx]);
+  showDiagCard();
+});
+document.getElementById('btn-continue').addEventListener('click',()=>startRec());
+
+document.getElementById('btn-rec-skip').addEventListener('click',()=>{
+  const p = recShown[recShown.length-1];
+  recHistory.push({p, liked:false});
+  // skipシグナルでprefVec更新
+  const pidx = PALETTES.findIndex(x=>x.brand===p.brand&&x.name===p.name);
+  if (pidx>=0) {
+    PALETTE_VECS[pidx].forEach((v,i) => recPrefVec[i] -= v*0.5);
+    const norm=Math.sqrt(recPrefVec.reduce((s,v)=>s+v*v,0))||1;
+    recPrefVec=recPrefVec.map(v=>v/norm);
+  }
+  showRecCard();
+  document.getElementById('btn-rec-undo').disabled=false;
+});
+document.getElementById('btn-rec-like').addEventListener('click',()=>{
+  const btn=document.getElementById('btn-rec-like');
+  if(btn.classList.contains('liked')) return;
+  const p = recShown[recShown.length-1];
+  recHistory.push({p, liked:true});
+  recLiked.push(p);
+  btn.classList.add('liked'); btn.textContent='♡ 追加';
+  // likeシグナルでprefVec更新
+  const pidx = PALETTES.findIndex(x=>x.brand===p.brand&&x.name===p.name);
+  if (pidx>=0) {
+    PALETTE_VECS[pidx].forEach((v,i) => recPrefVec[i] += v);
+    const norm=Math.sqrt(recPrefVec.reduce((s,v)=>s+v*v,0))||1;
+    recPrefVec=recPrefVec.map(v=>v/norm);
+  }
+  setTimeout(()=>{showRecCard();document.getElementById('btn-rec-undo').disabled=recHistory.length===0;},350);
+});
+document.getElementById('btn-rec-undo').addEventListener('click',()=>{
+  if(recHistory.length===0) return;
+  const prev=recHistory.pop();
+  // プールに戻す
+  recPool.unshift(recShown.pop());
+  // prefVec を巻き戻す
+  const pidx=PALETTES.findIndex(x=>x.brand===prev.p.brand&&x.name===prev.p.name);
+  if(pidx>=0){
+    if(prev.liked){
+      recLiked=recLiked.filter(p=>p!==prev.p);
+      PALETTE_VECS[pidx].forEach((v,i)=>recPrefVec[i]-=v);
+    } else {
+      PALETTE_VECS[pidx].forEach((v,i)=>recPrefVec[i]+=v*0.5);
+    }
+    const norm=Math.sqrt(recPrefVec.reduce((s,v)=>s+v*v,0))||1;
+    recPrefVec=recPrefVec.map(v=>v/norm);
+  }
+  showRecCard();
+});
+document.getElementById('btn-rec-finish').addEventListener('click',()=>showRecResult());
+
+// startDiag はスタート画面のボタンから呼ばれる
+});
+
+</script>
+</body>
+</html>
